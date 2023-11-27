@@ -1,5 +1,6 @@
 "use client";
 import { openai } from "@/lib/openai";
+import axios from "axios";
 import Image from "next/image";
 import OpenAI from "openai";
 import {
@@ -7,15 +8,7 @@ import {
   ChatCompletionMessageParam,
 } from "openai/resources/chat/index.mjs";
 import { useState } from "react";
-
-type Qna = {
-  question: string;
-  answer: string;
-};
-
-type GPTResponse = {
-  qna: Qna[];
-};
+import { Qna } from "./api/create-question/route";
 
 export default function Home() {
   const [data, setData] = useState<Qna[]>([]);
@@ -26,66 +19,15 @@ export default function Home() {
     try {
       if (!topic || topic === "") return;
 
-      const messages: ChatCompletionMessageParam[] = [
-        {
-          role: "system",
-          content:
-            "You generate questions about given topics using the functions you have been provided with. Only use the functions you have been provided with.",
-        },
-        {
-          role: "user",
-          content: `Create five questions.\nTopic: ${topic}`,
-        },
-      ];
-
-      const functions: ChatCompletionCreateParams.Function[] = [
-        {
-          name: "getQuestions",
-          description:
-            "This function generates questions for students. It accepts an array of objects. Each object should include a question and an answer to the question.",
-          parameters: {
-            type: "object",
-            properties: {
-              qna: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    question: {
-                      type: "string",
-                    },
-                    answer: {
-                      type: "string",
-                    },
-                  },
-                  required: ["question", "answer"],
-                },
-              },
-            },
-            required: ["qna"],
-          },
-        },
-      ];
-
       setLoading(true);
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: messages,
-        functions: functions,
-        function_call: "auto", // auto is default, but we'll be explicit
+      const res = await axios.post<{ qna: Qna[] }>("/api/create-question", {
+        topic: "omak",
       });
-
-      const responseMessage = response.choices[0].message;
-      if (!responseMessage.function_call)
-        throw new Error("Invalid output by ai.");
-
-      const functionArguments = JSON.parse(
-        responseMessage.function_call.arguments
-      ) as GPTResponse;
+      console.log(res);
 
       // console.log(functionArguments.qna);
-      setData(functionArguments.qna);
+      setData(res.data.qna);
 
       setLoading(false);
     } catch (err) {
@@ -102,7 +44,7 @@ export default function Home() {
           className="border rounded-md w-48 p-2"
         />
       </div>
-      <button onClick={run} className="border p-2 border-black">
+      <button onClick={run} className="border p-2 border-black mt-2 rounded">
         run
       </button>
 
